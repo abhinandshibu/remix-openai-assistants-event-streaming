@@ -1,39 +1,47 @@
-# Remix OpenAI Event Streaming
+# Remix OpenAI Event Streaming with OpenAI Assistants API
+
+This example aims to keep a single state variable that stores the message of the thread and is up to date. In that, the every streamed token is updated in this thread state variable, leading to automatic UI updates. So when creating your UI, you only need to use the thread state variable as you wish. 
+
+This is done through three resource routes, with three corresponding functions:
+- `api.add-message.ts` and `addMessage(thread_id, message, setThread)`
+- `api.load-thread.ts` and `loadThread(thread_id, setThread)`
+- `api.run.ts` and `run(thread_id, assistant_id, setThread)`
+
+Though as a developer just copy in the resource routes, and place the corresponding functions in a file, and now you should be able to utilise them in your application as you wish. 
+
+Create and populate your thread on initial render:
+```javascript
+const [thread, setThread] = useState<any[]>([]);
+useEffect(() => { loadThread(thread_id, setThread) }, []);
+```
+
+Run with your `OPENAI_API_KEY` in `.env` file.
+
+Install `npm i remix-utils`, which is used to create the `eventStream`.
 
 ---
 
 Design Aims:
-- A single state variable that has all the messages on the thread and is up to date.
+- A single state variable that has all the messages on the thread and is up to date. 
 - It should be up to date in that it is updated by every token that is streamed.
 - The format of this state variable is a list of messages, namely in the format that the openai `threads/{thread_id}/messages` gives
 
 Method:
-- Initially => Load thread into state var
-- User sends message => Add message to thread & reload thread into state var
+- Initially => Load openai thread into thread state var
+- User sends message => Add message to openai thread & append result onto thread state var
 - Response => 
-    Trigger message run with assistant & 
-    when event `thread.message.created` is given, its object is the message which should be appended the state var & 
-    when events `thread.message.delta` are given, its value should be appended to the message it was intended for 
+    Trigger message run & 
+    when event `thread.message.created` is given, its return value is the message which should be appended to the thread state var & 
+    when events `thread.message.delta` are given, its return value should be appended to the specific message in the thread state var &
+    when event `thread.message.completed` is given, its return value is the message which should overwrite the message
 
 Backend & Frontend
-- The backend will essentially act as a proxy (for now)
-- The frontend will create a few functions to handle the logic, which will be stored in seperate files to simplify the view
+- The backend will essentially act as a proxy 
+- The frontend will create a few functions to handle the logic, which can be stored in seperate files to simplify the view
 - The frontend development experience will then consist of 4 elements
     - `loadThread()`
     - `addMessage()`
     - `run()`
-    - the state variable that holds the up-to-date context
+    - the state variable that holds the up-to-date context (note, it is in desc order of time)
 
----
-
-Run with your `OPENAI_API_KEY` in `.env` file.
-
-- The `eventStream` from remix utils will be used to create backend event stream, so install using `npm i remix-utils`
-- We will be using the inbuilt `EventSource` to consume the event stream on the frontend (you can also use `useEventSource` from `remix-utils`)
-
----
-    
-Self Notes:
-- We can optimise this process by using the most recent message_id in the `after` key of the request, to just load the recent messages
-- Different event types within the streams triggered by runs (https://platform.openai.com/docs/api-reference/assistants-streaming/events)
 

@@ -1,5 +1,4 @@
 import type { MetaFunction } from "@remix-run/node";
-import { FetcherWithComponents, useFetcher } from "@remix-run/react";
 import { useEffect, useState } from "react";
 
 export const meta: MetaFunction = () => {
@@ -15,7 +14,7 @@ async function loadThread(
 ) {
   const response = await fetch(`/api/load-thread?thread_id=${thread_id}`);
   const responseJson = await response.json();
-  setThread(responseJson.data)
+  setThread(responseJson.data.map((message: any) => ({ ...message, key: message.id})))
 }
 
 async function addMessage(
@@ -26,7 +25,7 @@ async function addMessage(
   const encodedMessage = encodeURIComponent(message);
   const response = await fetch(`/api/add-message?thread_id=${thread_id}&message=${encodedMessage}`);
   const responseJson = await response.json();
-  setThread((thread) => [ responseJson.data, ...thread ])
+  setThread((thread) => [ { ...responseJson.data, key: responseJson.data.id}, ...thread ])
 }
 
 async function run(
@@ -35,33 +34,63 @@ async function run(
   setThread: React.Dispatch<React.SetStateAction<any[]>>
 ) {
   const sse = new EventSource(`/api/run?thread_id=${thread_id}&assistant_id=${assistant_id}`);
-  
+   
   sse.addEventListener("thread.message.created", (event) => {
-    setThread(thread => [ event.data, ...thread ]);
+    let data = JSON.parse(event.data);
+    setThread(thread => [ data, ...thread ]);
   });
 
   sse.addEventListener("thread.message.delta", (event) => {
-    // setThread(thread => [ event.data, ...thread ]);
-  }); 
+    let data = JSON.parse(event.data);
+    setThread((prevThread) =>
+      prevThread.map((message) => {
+        if (message.id === data.id) {
+          if (message.content.length === 0) {
+            return {
+              ...message,
+              content: data.delta.content
+            }; 
+          } else {
+            return {
+              ...message,
+              content: [{
+                ...message.content[0],
+                text: {
+                  ...message.content[0].text,
+                  value: message.content[0].text.value + data.delta.content[0].text.value,
+                },
+              }],
+            };
+          }
+        }
+        return message;
+      })
+    );
+  });
 
   sse.addEventListener("thread.message.completed", (event) => {
-    setThread(thread => [ event.data, ...thread ]);
+    let data = JSON.parse(event.data);
+    setThread(thread => 
+      thread.map((message) => {
+        if (message.id === data.id) {
+          return data;
+        }
+        return message;
+      })
+    )
+    sse.close();
   }); 
-
-
-  const responseJson = await response.json();
-  setThread((thread) => [ responseJson.data, ...thread ])
 }
 
 export default function Index() {
+  // INSERT YOUR THREAD_ID AND ASSISTANT_ID HERE
   const thread_id = "thread_xQGrXCKB4LaIYIaq94xM9PWw";
   const assistant_id = "asst_yBFBOAjeYbV44F5oyF7LIgUH";
+  
   const [thread, setThread] = useState<any[]>([]);
+  useEffect(() => { loadThread(thread_id, setThread) }, []);
 
   const [userMessage, setUserMessage] = useState("");
-
-  /* Load the thread on initial render */
-  useEffect(() => { loadThread(thread_id, setThread) }, []);
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: "1.8" }}>
@@ -71,15 +100,14 @@ export default function Index() {
         <button onClick={() => addMessage(thread_id, userMessage, setThread)}>
           Add Message 
         </button>
-        <button onClick={() => addMessage(thread_id, userMessage, setThread)}>
+        <button onClick={() => run(thread_id, assistant_id, setThread)}>
           Run 
         </button> 
       </>
 
       <>
         <br/> <hr/>
-        {thread.slice().reverse().map((message: any) => <> {message.role}: {message.content[0].text.value} <br/> </>)}
-        {/* {thread.map((message: any) => <> { JSON.stringify(message, null, 2) } <br/><br/> </>)} */}
+        {thread.slice().reverse().map((message: any) => <> <b>{message.role}:</b> {message.content.length > 0 && message.content[0].text.value} <br/> </>)}
       </>
       
     </div>
