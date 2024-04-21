@@ -22,7 +22,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     try {
         const threadMessages = await openai.beta.threads.messages.list(thread_id);
-        console.log(threadMessages)
         return json({ status: 200, data: threadMessages.data });
     } catch (error) {
         return json({ status: 500, data: 'Internal Server Error' }, { status: 500 });

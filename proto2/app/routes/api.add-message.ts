@@ -4,6 +4,7 @@ import { LoaderFunctionArgs } from "@remix-run/server-runtime";
 import { eventStream } from "remix-utils/sse/server";
 import dotenv from 'dotenv';
 import OpenAI from "openai";
+import { json } from "@remix-run/node";
 
 dotenv.config();
 const api_key = process.env.OPENAI_API_KEY;
@@ -19,12 +20,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
         return { status: 400, data: 'message or thread_id is missing' };
     }
 
-    // Adding a message does not automatically trigger a run, you seperately call a run.
-    await openai.beta.threads.messages.create(thread_id, {
-        role: 'user',
-        content: message,
-    });
-
-    return { status: 200 };
-
+    try {
+        const openaiMessage = await openai.beta.threads.messages.create(thread_id, {
+            role: 'user',
+            content: message,
+        });
+        return json({ status: 200, data: openaiMessage });
+    } catch (error) {
+        return json({ status: 500, data: 'Internal Server Error' }, { status: 500 });
+    }
 }

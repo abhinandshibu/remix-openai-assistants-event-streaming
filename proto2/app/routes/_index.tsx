@@ -18,20 +18,38 @@ async function loadThread(
   setThread(responseJson.data)
 }
 
+async function addMessage(
+  thread_id: string,
+  message: string,
+  setThread: React.Dispatch<React.SetStateAction<any[]>>
+) {
+  const encodedMessage = encodeURIComponent(message);
+  const response = await fetch(`/api/add-message?thread_id=${thread_id}&message=${encodedMessage}`);
+  const responseJson = await response.json();
+  setThread((thread) => [ responseJson.data, ...thread ])
+}
+
 export default function Index() {
   const thread_id = "thread_xQGrXCKB4LaIYIaq94xM9PWw";
   const [thread, setThread] = useState<any[]>([]);
 
-  useEffect(() => { loadThread(thread_id, setThread) }, []);
+  const [userMessage, setUserMessage] = useState("");
 
+  /* Load the thread on initial render */
+  useEffect(() => { loadThread(thread_id, setThread) }, []);
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", lineHeight: "1.8" }}>
-      {/* <button onClick={() => loadThread(thread_id, setThread)}>
-        Load Thread
-      </button> */}
+      
       <>
-        {/* {JSON.stringify(thread, null, 2)} */}
+        <input type="text" value={userMessage} onChange={(e) => setUserMessage(e.target.value)} />
+        <button onClick={() => addMessage(thread_id, userMessage, setThread)}>
+          Add Message 
+        </button>
+      </>
+
+      <>
+        <br/> --------- <br/>
         {thread.map((message: any) => <> { JSON.stringify(message, null, 2) } <br/><br/> </>)}
       </>
       
