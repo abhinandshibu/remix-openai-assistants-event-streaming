@@ -1,5 +1,3 @@
-// RESOURCE ROUTE: The purpose is to provide text completions for a chatbot.
-
 import { LoaderFunctionArgs } from "@remix-run/server-runtime";
 import dotenv from 'dotenv';
 import OpenAI from "openai";
